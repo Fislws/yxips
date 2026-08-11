@@ -33,11 +33,21 @@ urls = [
 ]
 
 zip_data_url = "https://zip.cm.edu.kg/all.txt"
-zip_target_regions = ["SG", "JP", "HK", "US", "AU"]
+zip_target_regions = ["SG", "HK", "US", "AU"]
 zip_count_per_region = 20
 
 # ✅ 改进的 IP+端口匹配正则
 ip_pattern = r'\d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})?'
+
+# ✅ 允许的端口白名单（仅允许这些端口；无端口的 IP 默认使用 443，视为允许）
+allowed_ports = {'443', '8443', '2053', '2083', '2087', '2096'}
+
+def is_allowed_port(ip_str):
+    """判断 IP 的端口是否在允许列表中（无端口时默认 443，视为允许）"""
+    if ":" in ip_str:
+        port = ip_str.rsplit(":", 1)[1]
+        return port in allowed_ports
+    return True
 
 # ============================================
 # GitHub 多源配置
@@ -48,7 +58,7 @@ github_sources = [
 github_targets = {
     "SG": 20,
     "JP": 10,
-    "HK": 20,
+    "HK": 10,
     "Los Angeles": 20
 }
 
@@ -156,7 +166,7 @@ def fetch_zip_region_ips(url, regions, n_each=50):
         for region, keys in region_keys.items():
             if region in regions and belongs_region(stripped, keys):
                 m = re.search(ip_pattern, stripped)
-                if m and len(results[region]) < n_each:
+                if m and len(results[region]) < n_each and is_allowed_port(m.group(0)):
                     results[region].append(m.group(0))
                 break
         if all(len(results[r]) >= n_each for r in regions):
@@ -196,7 +206,7 @@ def fetch_github_region_ips(sources, targets):
                     continue
                 if any(k.lower() in stripped.lower() for k in keys):
                     m = re.search(ip_pattern, stripped)
-                    if m and len(results[region]) < targets[region]:
+                    if m and len(results[region]) < targets[region] and is_allowed_port(m.group(0)):
                         results[region].append(m.group(0))
                         break
         time.sleep(0.3)
